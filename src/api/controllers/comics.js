@@ -35,17 +35,21 @@ const getComicById = async (req, res, next) => {
 const getComicsByYear = async (req, res, next) => {
   try {
     const { year } = req.params;
-    const comics = await Comic.find({ year: Number(year) })
 
-     if (!comics.length) {
-      return res.status(404).json("Lo siento, no encuentro cómics de ese año.");
+    const comics = await Comic.find({
+      releaseDate: { $regex: year, $options: "i" }
+    });
+
+    if (!comics.length) {
+      return res.status(404).json({ message: "No se encontraron cómics de ese año." });
     }
 
     return res.status(200).json(comics);
   } catch (error) {
     return res.status(400).json({
-      message: "Error. Inténtelo de nuevo",
-      error: error.message});
+      message: "Error. Inténtelo de nuevo.",
+      error: error.message
+    });
   }
 };
 

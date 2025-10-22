@@ -1,14 +1,16 @@
 const mongoose = require("mongoose");
 
 const comicSchema = new mongoose.Schema({
-    name: {type: String, required: true},
-    img: {type: String, required: true},
-    year: {type: Number, required: true},
-    author: {type: [String], required: true},
-    contents: {type: [String]},
-    genre: {type: [String]},
-    synopsis: {type: String, required: true},
-    comments: [{type: mongoose.Types.ObjectId, ref: "comments"}],
+  title: { type: String, required: true },
+  image: { type: String },
+  collection: { type: String },
+  releaseDate: { type: String },
+  synopsis: { type: String, required: true },
+  editorial: { type: String },
+  author: { type: [String], required: true },
+  pages: { type: Number },
+  isbn: { type: String, required: true, unique: true },
+  comments: [{ type: mongoose.Types.ObjectId, ref: "comments" }]
 }, {
   timestamps: true,
   collection: "comics"
