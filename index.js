@@ -4,6 +4,7 @@ const { connectDB } = require("./src/config/db");
 const comicsRouter = require("./src/api/routes/comics");
 const usersRouter = require("./src/api/routes/users");
 const commentsRouter = require("./src/api/routes/comments");
+const newsRouter = require("./src/api/routes/news");
 
 const app = express();
 
@@ -14,6 +15,7 @@ connectDB();
 app.use("/api/v1/comics", comicsRouter);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/comments", commentsRouter);
+app.use("/api/v1/news", newsRouter);
 
 app.use((req, res, next) => {
   return res.status(404).json("Route not found");

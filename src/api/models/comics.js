@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const comicSchema = new mongoose.Schema({
   title: { type: String, required: true },
   image: { type: String },
-  collection: { type: String },
+  content: { type: String },
   releaseDate: { type: String },
   synopsis: { type: String, required: true },
   editorial: { type: String },
