@@ -1,8 +1,9 @@
 const { adminAuth } = require("../../middlewares/auth");
-const { getComics, getComicById, getComicsByYear, postComic, putComic, deleteComic } = require("../controllers/comics");
+const { getComics, getComicById, getComicsByQuery, getComicsByYear, postComic, putComic, deleteComic } = require("../controllers/comics");
 const comicsRouter = require("express").Router();
 
 comicsRouter.get("/year/:year", getComicsByYear);
+comicsRouter.get("/search", getComicsByQuery);
 comicsRouter.get("/:id", getComicById);
 comicsRouter.get("/", getComics);
 comicsRouter.post("/", postComic);

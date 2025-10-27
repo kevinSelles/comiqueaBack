@@ -3,12 +3,24 @@ const User = require("../models/users");
 
 const getComics = async (req, res, next) => {
   try {
-    const comics = await Comic.find()
-    return res.status(200).json(comics);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const comics = await Comic.find().skip(skip).limit(limit);
+    const total = await Comic.countDocuments();
+
+    return res.status(200).json({
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      comics,
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Error. Cómics no encontrados",
-      error: error.message});
+      error: error.message,
+    });
   }
 };
 
@@ -29,6 +41,57 @@ const getComicById = async (req, res, next) => {
     return res.status(500).json({
       message: "Error. Cómic no encontrado",
       error: error.message});
+  }
+};
+
+const escapeRegExp = (str = "") => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const getComicsByQuery = async (req, res, next) => {
+  try {
+    const rawQuery = (req.query.query || "").trim();
+    const page = Number.parseInt(req.query.page, 10) || 1;
+    const limit = Number.parseInt(req.query.limit, 10) || 20;
+    const skip = (page - 1) * limit;
+
+    if (!rawQuery) {
+      const total = await Comic.countDocuments();
+      const comics = await Comic.find().skip(skip).limit(limit);
+      return res.status(200).json({
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+        comics,
+      });
+    }
+
+    const safe = escapeRegExp(rawQuery);
+    const regex = new RegExp(safe, "i");
+
+    const filter = {
+      $or: [
+        { title: regex },
+        { author: regex },
+        { isbn: regex },
+        { releaseDate: regex },
+        { content: regex },
+      ],
+    };
+
+    const total = await Comic.countDocuments(filter);
+    const comics = await Comic.find(filter).skip(skip).limit(limit);
+
+    return res.status(200).json({
+      total,
+      page,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      comics,
+    });
+  } catch (error) {
+    console.error("ERROR en getComicsByQuery:", error && error.stack ? error.stack : error);
+    return res.status(500).json({
+      message: "Error al buscar cómics en el servidor",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
 
@@ -108,6 +171,7 @@ const deleteComic = async (req, res, next) => {
 module.exports = {
   getComics,
   getComicById,
+  getComicsByQuery,
   getComicsByYear,
   postComic,
   putComic,

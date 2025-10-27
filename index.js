@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { connectDB } = require("./src/config/db");
 const comicsRouter = require("./src/api/routes/comics");
 const usersRouter = require("./src/api/routes/users");
@@ -7,6 +8,22 @@ const commentsRouter = require("./src/api/routes/comments");
 const newsRouter = require("./src/api/routes/news");
 
 const app = express();
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://comiquea.vercel.app",
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn("❌ Bloqueada petición CORS desde:", origin);
+      callback(new Error("CORS not allowed"));
+    }
+  },
+}));
 
 app.use(express.json());
 
@@ -19,7 +36,9 @@ app.use("/api/v1/news", newsRouter);
 
 app.use((req, res, next) => {
   return res.status(404).json("Route not found");
-})
+});
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor levantado en http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`Servidor levantado en http://localhost:${PORT}`)
+);
