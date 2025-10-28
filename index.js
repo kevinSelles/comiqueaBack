@@ -6,6 +6,7 @@ const comicsRouter = require("./src/api/routes/comics");
 const usersRouter = require("./src/api/routes/users");
 const commentsRouter = require("./src/api/routes/comments");
 const newsRouter = require("./src/api/routes/news");
+const contactRouter = require("./src/api/routes/contact");
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/v1/comics", comicsRouter);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/comments", commentsRouter);
 app.use("/api/v1/news", newsRouter);
+app.use("/api/v1/contact", contactRouter);
 
 app.use((req, res, next) => {
   return res.status(404).json("Route not found");
