@@ -4,23 +4,25 @@ const User = require("../models/users");
 
 const postComment = async (req, res, next) => {
   try {
-    const { comicId, content } = req.body;
+    const { comic, content } = req.body;
 
     if (!req.user) return res.status(401).json("Debes iniciar sesión para comentar");
+    if (!comic || !content) return res.status(400).json("Faltan datos para el comentario");
 
     const newComment = new Comment({
       content,
-      comic: comicId,
+      comic,
       user: req.user._id
     });
 
     const commentSaved = await newComment.save();
 
-    await Comic.findByIdAndUpdate(comicId, { $push: { comments: commentSaved._id } });
+    await Comic.findByIdAndUpdate(comic, { $push: { comments: commentSaved._id } });
     await User.findByIdAndUpdate(req.user._id, { $push: { comments: commentSaved._id } });
 
     return res.status(201).json(commentSaved);
   } catch (error) {
+    console.error("Error creando comentario:", error);
     return res.status(500).json({
       message: "No se pudo publicar el comentario",
       error: error.message
