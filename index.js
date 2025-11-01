@@ -7,6 +7,7 @@ const usersRouter = require("./src/api/routes/users");
 const commentsRouter = require("./src/api/routes/comments");
 const newsRouter = require("./src/api/routes/news");
 const contactRouter = require("./src/api/routes/contact");
+const cloudinary = require("cloudinary").v2;
 
 const app = express();
 
@@ -25,6 +26,12 @@ app.use(cors({
     }
   },
 }));
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET
+});
 
 app.use(express.json());
 

@@ -1,5 +1,7 @@
 const Comic = require("../models/comics");
 const User = require("../models/users");
+const cloudinary = require("cloudinary").v2;
+const { deleteFile } = require("../../utils/deleteFiles");
 
 const getComics = async (req, res, next) => {
   try {
@@ -116,15 +118,46 @@ const getComicsByYear = async (req, res, next) => {
   }
 };
 
-const postComic = async (req, res, next) => {
+const postComic = async (req, res) => {
   try {
-    const newComic = new Comic(req.body);
+    const { title, synopsis, isbn, author } = req.body;
+
+    if (!title || !synopsis || !isbn || !author) {
+      if (req.file?.path || req.file?.secure_url) {
+        await deleteFile(req.file?.secure_url || req.file.path);
+      }
+      return res.status(400).json({ message: "Faltan campos obligatorios" });
+    }
+
+    const existing = await Comic.findOne({ isbn: isbn.trim() });
+    if (existing) {
+      if (req.file?.path || req.file?.secure_url) {
+        await deleteFile(req.file?.secure_url || req.file.path);
+      }
+      return res.status(400).json({ message: "Ya existe un cómic con ese ISBN" });
+    }
+
+    let imageUrl = "";
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "comics",
+      });
+      imageUrl = result.secure_url;
+    }
+
+    const newComic = new Comic({
+      ...req.body,
+      isbn: isbn.trim(),
+      author: author.split(",").map(a => a.trim()),
+      image: imageUrl,
+    });
+
     const comicSaved = await newComic.save();
 
     if (req.user) {
       try {
         await User.findByIdAndUpdate(req.user._id, {
-          $addToSet: { createdComics: comicSaved._id }
+          $addToSet: { createdComics: comicSaved._id },
         });
       } catch (userError) {
         console.error("No se pudo actualizar createdComics:", userError);
@@ -132,10 +165,11 @@ const postComic = async (req, res, next) => {
     }
 
     return res.status(201).json(comicSaved);
+
   } catch (error) {
     return res.status(500).json({
-      message: "Error. Cómic no publicado. Inténtelo de nuevo.",
-      error: error.message
+      message: "Error. Cómic no publicado.",
+      error: error.message,
     });
   }
 };
@@ -145,26 +179,51 @@ const putComic = async (req, res, next) => {
     const { id } = req.params;
     const oldComic = await Comic.findById(id);
 
-    if (!oldComic) return res.status(404).json("Cómic no encontrado");
+    if (!oldComic) return res.status(404).json({ message: "Cómic no encontrado" });
+
+    if (req.file) {
+      if (oldComic.image) {
+        await deleteFile(oldComic.image);
+      }
+
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "comics",
+      });
+      req.body.image = result.secure_url;
+    }
 
     const comicUpdated = await Comic.findByIdAndUpdate(id, req.body, { new: true });
 
     return res.status(200).json(comicUpdated);
+
   } catch (error) {
     return res.status(500).json({
       message: "Error. No se pudo modificar el cómic. Inténtelo de nuevo.",
-      error: error.message});
+      error: error.message
+    });
   }
 };
+
 const deleteComic = async (req, res, next) => {
   try {
     const { id } = req.params;
     const comicDeleted = await Comic.findByIdAndDelete(id);
+
+    if (!comicDeleted) {
+      return res.status(404).json({ message: "Cómic no encontrado" });
+    };
+
+    await User.updateMany(
+      { createdComics: id },
+      { $pull: { createdComics: id } }
+    );
+
     return res.status(200).json(comicDeleted);
   } catch (error) {
     return res.status(500).json({
       message: "Error. No se pudo eliminar el cómic. Inténtelo de nuevo",
-      error: error.message});
+      error: error.message
+    });
   }
 };
 

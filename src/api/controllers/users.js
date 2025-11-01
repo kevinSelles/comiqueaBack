@@ -16,7 +16,13 @@ const getUserById = async (req, res, next) => {
     const { id } = req.params;
     const user = await User.findById(id)
       .select("-password")
-      .populate("createdComics");
+      .populate([
+        { path: "createdComics" },
+        { path: "favorites" },
+        { path: "owned" },
+        { path: "read" },
+        { path: "wishlist" }
+      ]);
 
     if (!user) {
       return res.status(404).json("Usuario no encontrado");
