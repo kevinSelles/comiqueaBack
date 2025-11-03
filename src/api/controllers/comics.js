@@ -119,36 +119,40 @@ const getComicsByYear = async (req, res, next) => {
 };
 
 const postComic = async (req, res) => {
+  let imageUrl = "";
+
   try {
     const { title, synopsis, isbn, author } = req.body;
 
+    if (req.file) imageUrl = req.file.path;
+
     if (!title || !synopsis || !isbn || !author) {
-      if (req.file?.path || req.file?.secure_url) {
-        await deleteFile(req.file?.secure_url || req.file.path);
-      }
+      if (imageUrl) await deleteFile(imageUrl);
       return res.status(400).json({ message: "Faltan campos obligatorios" });
     }
 
     const existing = await Comic.findOne({ isbn: isbn.trim() });
     if (existing) {
-      if (req.file?.path || req.file?.secure_url) {
-        await deleteFile(req.file?.secure_url || req.file.path);
-      }
+      if (imageUrl) await deleteFile(imageUrl);
       return res.status(400).json({ message: "Ya existe un cómic con ese ISBN" });
     }
 
-    let imageUrl = "";
-    if (req.file) {
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "comics",
-      });
-      imageUrl = result.secure_url;
+    let authorsArray = [];
+    if (typeof author === "string") {
+      try {
+        authorsArray = JSON.parse(author);
+        if (!Array.isArray(authorsArray)) throw new Error();
+      } catch {
+        authorsArray = author.split(",").map(a => a.trim()).filter(a => a);
+      }
+    } else if (Array.isArray(author)) {
+      authorsArray = author.map(a => a.trim());
     }
 
     const newComic = new Comic({
       ...req.body,
       isbn: isbn.trim(),
-      author: author.split(",").map(a => a.trim()),
+      author: authorsArray,
       image: imageUrl,
     });
 
@@ -167,6 +171,8 @@ const postComic = async (req, res) => {
     return res.status(201).json(comicSaved);
 
   } catch (error) {
+    if (imageUrl) await deleteFile(imageUrl);
+
     return res.status(500).json({
       message: "Error. Cómic no publicado.",
       error: error.message,
@@ -174,32 +180,64 @@ const postComic = async (req, res) => {
   }
 };
 
-const putComic = async (req, res, next) => {
+const putComic = async (req, res) => {
+  let newImageUrl = "";
+
   try {
     const { id } = req.params;
     const oldComic = await Comic.findById(id);
-
     if (!oldComic) return res.status(404).json({ message: "Cómic no encontrado" });
 
-    if (req.file) {
-      if (oldComic.image) {
-        await deleteFile(oldComic.image);
-      }
+    const { title, synopsis, isbn, author, releaseDate, editorial, pages, content } = req.body;
 
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "comics",
-      });
-      req.body.image = result.secure_url;
+    if (!title || !synopsis || !isbn || !author) {
+      if (req.file) await deleteFile(req.file.path);
+      return res.status(400).json({ message: "Faltan campos obligatorios" });
     }
 
-    const comicUpdated = await Comic.findByIdAndUpdate(id, req.body, { new: true });
+    let authorsArray = [];
+    if (typeof author === "string") {
+      try {
+        authorsArray = JSON.parse(author);
+        if (!Array.isArray(authorsArray)) throw new Error();
+      } catch {
+        authorsArray = author.split(",").map(a => a.trim()).filter(a => a);
+      }
+    } else if (Array.isArray(author)) {
+      authorsArray = author.map(a => a.trim());
+    }
+
+    const updateData = {
+      title,
+      synopsis,
+      isbn: isbn.trim(),
+      author: authorsArray,
+      releaseDate,
+      editorial,
+      pages,
+      content,
+    };
+
+    if (req.file) {
+      newImageUrl = req.file.path;
+      updateData.image = newImageUrl;
+    }
+
+    const comicUpdated = await Comic.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+
+    if (req.file && oldComic.image) {
+      await deleteFile(oldComic.image);
+    }
 
     return res.status(200).json(comicUpdated);
 
   } catch (error) {
+    if (newImageUrl) await deleteFile(newImageUrl);
+
+    console.error("PUT /comics/:id error:", error);
     return res.status(500).json({
       message: "Error. No se pudo modificar el cómic. Inténtelo de nuevo.",
-      error: error.message
+      error: error.message,
     });
   }
 };

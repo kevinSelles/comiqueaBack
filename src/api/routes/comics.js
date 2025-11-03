@@ -8,7 +8,7 @@ comicsRouter.get("/search", getComicsByQuery);
 comicsRouter.get("/:id", getComicById);
 comicsRouter.get("/", getComics);
 comicsRouter.post("/", upload.single("image"), postComic);
-comicsRouter.put("/:id", adminAuth, putComic);
+comicsRouter.put("/:id", upload.single("image"), putComic);
 comicsRouter.delete("/:id", adminAuth, deleteComic);
 
 module.exports = comicsRouter;
