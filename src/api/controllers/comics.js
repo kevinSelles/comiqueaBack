@@ -249,18 +249,30 @@ const deleteComic = async (req, res, next) => {
 
     if (!comicDeleted) {
       return res.status(404).json({ message: "Cómic no encontrado" });
-    };
+    }
+
+    if (comicDeleted.image && comicDeleted.image.includes("res.cloudinary.com")) {
+      try {
+        await deleteFile(comicDeleted.image);
+      } catch (err) {
+        console.warn("⚠️ No se pudo eliminar la imagen de Cloudinary:", err.message);
+      }
+    }
 
     await User.updateMany(
       { createdComics: id },
       { $pull: { createdComics: id } }
     );
 
-    return res.status(200).json(comicDeleted);
+    return res.status(200).json({
+      message: "✅ Cómic eliminado correctamente",
+      comic: comicDeleted,
+    });
   } catch (error) {
+    console.error("Error al eliminar cómic:", error);
     return res.status(500).json({
-      message: "Error. No se pudo eliminar el cómic. Inténtelo de nuevo",
-      error: error.message
+      message: "Error. No se pudo eliminar el cómic. Inténtelo de nuevo.",
+      error: error.message,
     });
   }
 };
