@@ -14,23 +14,14 @@ const getUsers = async (req, res, next) => {
 const getUserById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id)
-      .select("-password")
-      .populate([
-        { path: "createdComics" },
-        { path: "favorites" },
-        { path: "owned" },
-        { path: "read" },
-        { path: "wishlist" }
-      ]);
+    const user = await User.findById(id).select("-password");
 
-    if (!user) {
-      return res.status(404).json("Usuario no encontrado");
-    }
+    if (!user) return res.status(404).json("Usuario no encontrado");
 
     return res.status(200).json(user);
   } catch (error) {
-    return res.status(500).json(error);
+    console.error("Error en getUserById:", error);
+    return res.status(500).json({ message: "Error al obtener el usuario" });
   }
 };
 

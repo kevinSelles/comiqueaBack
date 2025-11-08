@@ -1,6 +1,5 @@
 const Comic = require("../models/comics");
 const User = require("../models/users");
-const cloudinary = require("cloudinary").v2;
 const { deleteFile } = require("../../utils/deleteFiles");
 
 const getComics = async (req, res, next) => {
@@ -29,10 +28,10 @@ const getComics = async (req, res, next) => {
 const getComicById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const comic = await Comic.findById(id) .populate({
-        path: "comments",
-        populate: { path: "user", select: "userName" }
-      });
+    const comic = await Comic.findById(id).populate({
+      path: "comments",
+      populate: { path: "user", select: "userName" },
+    });
 
     if (!comic) {
       return res.status(404).json({ message: "Cómic no encontrado" });
@@ -42,11 +41,13 @@ const getComicById = async (req, res, next) => {
   } catch (error) {
     return res.status(500).json({
       message: "Error. Cómic no encontrado",
-      error: error.message});
+      error: error.message,
+    });
   }
 };
 
-const escapeRegExp = (str = "") => String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (str = "") =>
+  String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const getComicsByQuery = async (req, res, next) => {
   try {
@@ -72,10 +73,13 @@ const getComicsByQuery = async (req, res, next) => {
     const filter = {
       $or: [
         { title: regex },
-        { author: regex },
+        { authors: regex },
         { isbn: regex },
-        { releaseDate: regex },
-        { content: regex },
+        { date: regex },
+        { description: regex },
+        { serie: regex },
+        { publisher: regex },
+        { language: regex },
       ],
     };
 
@@ -89,10 +93,10 @@ const getComicsByQuery = async (req, res, next) => {
       comics,
     });
   } catch (error) {
-    console.error("ERROR en getComicsByQuery:", error && error.stack ? error.stack : error);
+    console.error("ERROR en getComicsByQuery:", error);
     return res.status(500).json({
       message: "Error al buscar cómics en el servidor",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+      error: error.message,
     });
   }
 };
@@ -100,10 +104,7 @@ const getComicsByQuery = async (req, res, next) => {
 const getComicsByYear = async (req, res, next) => {
   try {
     const { year } = req.params;
-
-    const comics = await Comic.find({
-      releaseDate: { $regex: year, $options: "i" }
-    });
+    const comics = await Comic.find({ date: { $regex: year, $options: "i" } });
 
     if (!comics.length) {
       return res.status(404).json({ message: "No se encontraron cómics de ese año." });
@@ -113,7 +114,7 @@ const getComicsByYear = async (req, res, next) => {
   } catch (error) {
     return res.status(400).json({
       message: "Error. Inténtelo de nuevo.",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -122,11 +123,10 @@ const postComic = async (req, res) => {
   let imageUrl = "";
 
   try {
-    const { title, synopsis, isbn, author } = req.body;
-
+    const { title, description, isbn, authors } = req.body;
     if (req.file) imageUrl = req.file.path;
 
-    if (!title || !synopsis || !isbn || !author) {
+    if (!title || !description || !isbn || !authors) {
       if (imageUrl) await deleteFile(imageUrl);
       return res.status(400).json({ message: "Faltan campos obligatorios" });
     }
@@ -138,41 +138,35 @@ const postComic = async (req, res) => {
     }
 
     let authorsArray = [];
-    if (typeof author === "string") {
+    if (typeof authors === "string") {
       try {
-        authorsArray = JSON.parse(author);
+        authorsArray = JSON.parse(authors);
         if (!Array.isArray(authorsArray)) throw new Error();
       } catch {
-        authorsArray = author.split(",").map(a => a.trim()).filter(a => a);
+        authorsArray = authors.split(",").map(a => a.trim()).filter(a => a);
       }
-    } else if (Array.isArray(author)) {
-      authorsArray = author.map(a => a.trim());
+    } else if (Array.isArray(authors)) {
+      authorsArray = authors.map(a => a.trim());
     }
 
     const newComic = new Comic({
       ...req.body,
       isbn: isbn.trim(),
-      author: authorsArray,
-      image: imageUrl,
+      authors: authorsArray,
+      img: imageUrl,
     });
 
     const comicSaved = await newComic.save();
 
     if (req.user) {
-      try {
-        await User.findByIdAndUpdate(req.user._id, {
-          $addToSet: { createdComics: comicSaved._id },
-        });
-      } catch (userError) {
-        console.error("No se pudo actualizar createdComics:", userError);
-      }
+      await User.findByIdAndUpdate(req.user._id, {
+        $addToSet: { createdComics: comicSaved._id },
+      });
     }
 
     return res.status(201).json(comicSaved);
-
   } catch (error) {
     if (imageUrl) await deleteFile(imageUrl);
-
     return res.status(500).json({
       message: "Error. Cómic no publicado.",
       error: error.message,
@@ -188,55 +182,54 @@ const putComic = async (req, res) => {
     const oldComic = await Comic.findById(id);
     if (!oldComic) return res.status(404).json({ message: "Cómic no encontrado" });
 
-    const { title, synopsis, isbn, author, releaseDate, editorial, pages, content } = req.body;
+    const { title, description, isbn, authors, date, publisher, format, serie, language } = req.body;
 
-    if (!title || !synopsis || !isbn || !author) {
+    if (!title || !description || !isbn || !authors) {
       if (req.file) await deleteFile(req.file.path);
       return res.status(400).json({ message: "Faltan campos obligatorios" });
     }
 
     let authorsArray = [];
-    if (typeof author === "string") {
+    if (typeof authors === "string") {
       try {
-        authorsArray = JSON.parse(author);
+        authorsArray = JSON.parse(authors);
         if (!Array.isArray(authorsArray)) throw new Error();
       } catch {
-        authorsArray = author.split(",").map(a => a.trim()).filter(a => a);
+        authorsArray = authors.split(",").map(a => a.trim()).filter(a => a);
       }
-    } else if (Array.isArray(author)) {
-      authorsArray = author.map(a => a.trim());
+    } else if (Array.isArray(authors)) {
+      authorsArray = authors.map(a => a.trim());
     }
 
     const updateData = {
       title,
-      synopsis,
+      description,
       isbn: isbn.trim(),
-      author: authorsArray,
-      releaseDate,
-      editorial,
-      pages,
-      content,
+      authors: authorsArray,
+      date,
+      publisher,
+      serie,
+      language,
+      format,
     };
 
     if (req.file) {
       newImageUrl = req.file.path;
-      updateData.image = newImageUrl;
+      updateData.img = newImageUrl;
     }
 
     const comicUpdated = await Comic.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
 
-    if (req.file && oldComic.image) {
-      await deleteFile(oldComic.image);
+    if (req.file && oldComic.img) {
+      await deleteFile(oldComic.img);
     }
 
     return res.status(200).json(comicUpdated);
-
   } catch (error) {
     if (newImageUrl) await deleteFile(newImageUrl);
-
     console.error("PUT /comics/:id error:", error);
     return res.status(500).json({
-      message: "Error. No se pudo modificar el cómic. Inténtelo de nuevo.",
+      message: "Error. No se pudo modificar el cómic.",
       error: error.message,
     });
   }
@@ -251,9 +244,9 @@ const deleteComic = async (req, res, next) => {
       return res.status(404).json({ message: "Cómic no encontrado" });
     }
 
-    if (comicDeleted.image && comicDeleted.image.includes("res.cloudinary.com")) {
+    if (comicDeleted.img && comicDeleted.img.includes("res.cloudinary.com")) {
       try {
-        await deleteFile(comicDeleted.image);
+        await deleteFile(comicDeleted.img);
       } catch (err) {
         console.warn("⚠️ No se pudo eliminar la imagen de Cloudinary:", err.message);
       }
@@ -271,7 +264,7 @@ const deleteComic = async (req, res, next) => {
   } catch (error) {
     console.error("Error al eliminar cómic:", error);
     return res.status(500).json({
-      message: "Error. No se pudo eliminar el cómic. Inténtelo de nuevo.",
+      message: "Error. No se pudo eliminar el cómic.",
       error: error.message,
     });
   }
@@ -284,5 +277,5 @@ module.exports = {
   getComicsByYear,
   postComic,
   putComic,
-  deleteComic
+  deleteComic,
 };
