@@ -4,10 +4,10 @@ const cors = require("cors");
 const { connectDB } = require("./src/config/db");
 const comicsRouter = require("./src/api/routes/comics");
 const usersRouter = require("./src/api/routes/users");
-const commentsRouter = require("./src/api/routes/comments");
-const newsRouter = require("./src/api/routes/news");
-const contactRouter = require("./src/api/routes/contact");
-const cloudinary = require("cloudinary").v2;
+//const commentsRouter = require("./src/api/routes/comments");
+//const newsRouter = require("./src/api/routes/news");
+//const contactRouter = require("./src/api/routes/contact");
+//const cloudinary = require("cloudinary").v2;
 
 const app = express();
 
@@ -27,11 +27,11 @@ app.use(cors({
   },
 }));
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET
-});
+//cloudinary.config({
+//  cloud_name: process.env.CLOUD_NAME,
+//  api_key: process.env.API_KEY,
+//  api_secret: process.env.API_SECRET
+//});
 
 app.use(express.json());
 
@@ -39,9 +39,9 @@ connectDB();
 
 app.use("/api/v1/comics", comicsRouter);
 app.use("/api/v1/users", usersRouter);
-app.use("/api/v1/comments", commentsRouter);
-app.use("/api/v1/news", newsRouter);
-app.use("/api/v1/contact", contactRouter);
+//app.use("/api/v1/comments", commentsRouter);
+//app.use("/api/v1/news", newsRouter);
+//app.use("/api/v1/contact", contactRouter);
 
 app.use((req, res, next) => {
   return res.status(404).json("Route not found");

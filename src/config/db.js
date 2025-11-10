@@ -7,7 +7,6 @@ const connectDB = async () => {
     
   } catch (error) {
     console.error("No se pudo conectar a la bbdd", error);
-    process.exit(1);
   }
 }
 
