@@ -11,6 +11,8 @@ const cloudinary = require("cloudinary").v2;
 
 const app = express();
 
+connectDB().catch(err => console.error(err));
+
 const allowedOrigins = [
   "http://localhost:5173",
   "https://comiquea.vercel.app",
@@ -21,7 +23,6 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn("❌ Bloqueada petición CORS desde:", origin);
       callback(new Error("CORS not allowed"));
     }
   },
@@ -35,19 +36,14 @@ cloudinary.config({
 
 app.use(express.json());
 
-connectDB();
-
 app.use("/api/v1/comics", comicsRouter);
 app.use("/api/v1/users", usersRouter);
 app.use("/api/v1/comments", commentsRouter);
 app.use("/api/v1/news", newsRouter);
 app.use("/api/v1/contact", contactRouter);
 
-app.use((req, res, next) => {
+app.use((req, res) => {
   return res.status(404).json("Route not found");
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`Servidor levantado en http://localhost:${PORT}`)
-);
+module.exports = app;
