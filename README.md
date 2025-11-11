@@ -20,6 +20,14 @@ Los usuarios pueden contribuir añadiendo nuevos cómics, haciendo que la base d
 
 ---
 
+## Ruta base de la API
+
+- **Local:**
+  http://localhost:3000/api/v1
+
+- **Producción:**  
+  https://comiquea-back.vercel.app/api/v1
+
 ## Endpoints de la API
 
 ### **Comics**
