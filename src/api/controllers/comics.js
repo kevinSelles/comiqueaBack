@@ -1,21 +1,62 @@
 const Comic = require("../models/comics");
 const User = require("../models/users");
 const { deleteFile } = require("../../utils/deleteFiles");
+const { getSortObject } = require("../../utils/sortComics");
 
 const getComics = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
+    const sort = req.query.sort || null;
 
-    const comics = await Comic.find().skip(skip).limit(limit);
-    const total = await Comic.countDocuments();
+    const comics = await Comic.find();
+    const total = comics.length;
+
+    let sortedComics = [...comics];
+
+    if (sort) {
+      const [field, dir] = sort.split("-");
+      sortedComics.sort((a, b) => {
+        let valA, valB;
+
+        switch (field) {
+          case "date":
+            valA = a.date?.match(/\d{4}/) ? parseInt(a.date.match(/\d{4}/)[0]) : 0;
+            valB = b.date?.match(/\d{4}/) ? parseInt(b.date.match(/\d{4}/)[0]) : 0;
+            return dir === "asc" ? valA - valB : valB - valA;
+
+          case "title":
+            valA = a.title || "";
+            valB = b.title || "";
+            return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+
+          case "author":
+            valA = Array.isArray(a.authors)
+              ? a.authors[0] || ""
+              : typeof a.authors === "string"
+              ? a.authors
+              : "";
+            valB = Array.isArray(b.authors)
+              ? b.authors[0] || ""
+              : typeof b.authors === "string"
+              ? b.authors
+              : "";
+            return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+
+          default:
+            return 0;
+        }
+      });
+    }
+
+    const paginatedComics = sortedComics.slice(skip, skip + limit);
 
     return res.status(200).json({
       total,
       page,
       totalPages: Math.ceil(total / limit),
-      comics,
+      comics: paginatedComics,
     });
   } catch (error) {
     return res.status(500).json({
@@ -46,51 +87,79 @@ const getComicById = async (req, res, next) => {
   }
 };
 
-const escapeRegExp = (str = "") =>
-  String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 const getComicsByQuery = async (req, res, next) => {
   try {
     const rawQuery = (req.query.query || "").trim();
     const page = Number.parseInt(req.query.page, 10) || 1;
     const limit = Number.parseInt(req.query.limit, 10) || 20;
     const skip = (page - 1) * limit;
+    const sort = req.query.sort || null;
 
-    if (!rawQuery) {
-      const total = await Comic.countDocuments();
-      const comics = await Comic.find().skip(skip).limit(limit);
-      return res.status(200).json({
-        total,
-        page,
-        totalPages: Math.ceil(total / limit),
-        comics,
+    let filter = {};
+    if (rawQuery) {
+      const safe = rawQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(safe, "i");
+      filter = {
+        $or: [
+          { title: regex },
+          { authors: regex },
+          { isbn: regex },
+          { date: regex },
+          { description: regex },
+          { serie: regex },
+          { publisher: regex },
+          { language: regex },
+        ],
+      };
+    }
+
+    const comics = await Comic.find(filter);
+    const total = comics.length;
+
+    let sortedComics = [...comics];
+
+    if (sort) {
+      const [field, dir] = sort.split("-");
+      sortedComics.sort((a, b) => {
+        let valA, valB;
+
+        switch (field) {
+          case "date":
+            valA = a.date?.match(/\d{4}/) ? parseInt(a.date.match(/\d{4}/)[0]) : 0;
+            valB = b.date?.match(/\d{4}/) ? parseInt(b.date.match(/\d{4}/)[0]) : 0;
+            return dir === "asc" ? valA - valB : valB - valA;
+
+          case "title":
+            valA = a.title || "";
+            valB = b.title || "";
+            return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+
+          case "author":
+            valA = Array.isArray(a.authors)
+              ? a.authors[0] || ""
+              : typeof a.authors === "string"
+              ? a.authors
+              : "";
+            valB = Array.isArray(b.authors)
+              ? b.authors[0] || ""
+              : typeof b.authors === "string"
+              ? b.authors
+              : "";
+            return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+
+          default:
+            return 0;
+        }
       });
     }
 
-    const safe = escapeRegExp(rawQuery);
-    const regex = new RegExp(safe, "i");
-
-    const filter = {
-      $or: [
-        { title: regex },
-        { authors: regex },
-        { isbn: regex },
-        { date: regex },
-        { description: regex },
-        { serie: regex },
-        { publisher: regex },
-        { language: regex },
-      ],
-    };
-
-    const total = await Comic.countDocuments(filter);
-    const comics = await Comic.find(filter).skip(skip).limit(limit);
+    const paginatedComics = sortedComics.slice(skip, skip + limit);
 
     return res.status(200).json({
       total,
       page,
       totalPages: Math.max(1, Math.ceil(total / limit)),
-      comics,
+      comics: paginatedComics,
     });
   } catch (error) {
     console.error("ERROR en getComicsByQuery:", error);
