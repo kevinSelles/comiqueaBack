@@ -45,9 +45,10 @@ const postUser = async (req, res, next) => {
     }
 
     const userSaved = await newUser.save();
+    const token = generateToken(userSaved._id);
     const userResponse = await User.findById(userSaved._id).select("-password");
 
-    return res.status(201).json(userResponse);
+    return res.status(201).json({userResponse, token});
   } catch (error) {
     return res.status(400).json(error);
   }
